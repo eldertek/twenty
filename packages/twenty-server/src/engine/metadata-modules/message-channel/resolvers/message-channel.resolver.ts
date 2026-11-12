@@ -113,14 +113,28 @@ export class MessageChannelResolver {
     @Parent() messageChannel: MessageChannelDTO,
     @AuthWorkspace() workspace: WorkspaceEntity,
   ): Promise<boolean> {
-    return (
-      messageChannel.type === MessageChannelType.APP &&
-      this.messagingProviderMessageSenderService.canStartConversation({
-        messagingProviderUniversalIdentifier:
-          messageChannel.messagingProviderUniversalIdentifier,
+    if (messageChannel.type !== MessageChannelType.APP) {
+      return false;
+    }
+
+    const connectedAccount =
+      await this.connectedAccountMetadataService.findById({
+        id: messageChannel.connectedAccountId,
         workspaceId: workspace.id,
-      })
-    );
+      });
+
+    const connectionProviderId = connectedAccount?.connectionProviderId;
+
+    if (!isDefined(connectionProviderId)) {
+      return false;
+    }
+
+    return this.messagingProviderMessageSenderService.canStartConversation({
+      messagingProviderUniversalIdentifier:
+        messageChannel.messagingProviderUniversalIdentifier,
+      connectionProviderId,
+      workspaceId: workspace.id,
+    });
   }
 
   @ResolveField('connectedAccount', () => ConnectedAccountPublicDTO, {

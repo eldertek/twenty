@@ -69,7 +69,7 @@ export class MessagingProviderMessageSenderService {
         logicFunctionLabel: 'startConversation',
       });
 
-    if (messagingProvider.conversationStyle === 'email') {
+    if (!supportsConversationStart(messagingProvider)) {
       throw new MessagingProviderException(
         `Messaging provider ${messagingProvider.id} sends email-style messages: starting a conversation is not supported`,
         MessagingProviderExceptionCode.START_CONVERSATION_NOT_AVAILABLE,
@@ -82,39 +82,19 @@ export class MessagingProviderMessageSenderService {
     };
   }
 
-  async canStartConversation({
-    messagingProviderUniversalIdentifier,
-    workspaceId,
-  }: Pick<
-    MessagingProviderLookup,
-    'messagingProviderUniversalIdentifier' | 'workspaceId'
-  >): Promise<boolean> {
-    if (!isDefined(messagingProviderUniversalIdentifier)) {
-      return false;
-    }
-
-    const { flatMessagingProviderMaps, flatLogicFunctionMaps } =
-      await this.workspaceCacheService.getOrRecompute(workspaceId, [
-        'flatMessagingProviderMaps',
-        'flatLogicFunctionMaps',
-      ]);
-
-    const messagingProvider =
-      flatMessagingProviderMaps.byUniversalIdentifier[
-        messagingProviderUniversalIdentifier
-      ];
+  async canStartConversation(
+    lookup: Omit<MessagingProviderLookup, 'messageChannelId'>,
+  ): Promise<boolean> {
+    const { messagingProvider, logicFunction } = await this.findLogicFunction({
+      ...lookup,
+      getLogicFunctionUniversalIdentifier: (provider) =>
+        provider.startConversationLogicFunctionUniversalIdentifier,
+    });
 
     return (
       isDefined(messagingProvider) &&
-      messagingProvider.conversationStyle !== 'email' &&
-      isDefined(
-        findApplicationFlatLogicFunction({
-          flatLogicFunctionMaps,
-          universalIdentifier:
-            messagingProvider.startConversationLogicFunctionUniversalIdentifier,
-          applicationId: messagingProvider.applicationId,
-        }),
-      )
+      isDefined(logicFunction) &&
+      supportsConversationStart(messagingProvider)
     );
   }
 
@@ -207,6 +187,43 @@ export class MessagingProviderMessageSenderService {
     messagingProvider: FlatMessagingProvider;
     logicFunction: FlatLogicFunction;
   }> {
+    const { messagingProvider, logicFunction } = await this.findLogicFunction({
+      messagingProviderUniversalIdentifier,
+      connectionProviderId,
+      workspaceId,
+      getLogicFunctionUniversalIdentifier,
+    });
+
+    if (!isDefined(messagingProvider)) {
+      throw new MessagingProviderException(
+        `Message channel ${messageChannelId} has no messaging provider on its connection provider`,
+        notAvailableCode,
+      );
+    }
+
+    if (!isDefined(logicFunction)) {
+      throw new MessagingProviderException(
+        `Messaging provider ${messagingProvider.id} has no ${logicFunctionLabel} logic function in its application`,
+        notAvailableCode,
+      );
+    }
+
+    return { messagingProvider, logicFunction };
+  }
+
+  private async findLogicFunction({
+    messagingProviderUniversalIdentifier,
+    connectionProviderId,
+    workspaceId,
+    getLogicFunctionUniversalIdentifier,
+  }: Omit<MessagingProviderLookup, 'messageChannelId'> & {
+    getLogicFunctionUniversalIdentifier: (
+      messagingProvider: FlatMessagingProvider,
+    ) => string | null;
+  }): Promise<{
+    messagingProvider: FlatMessagingProvider | undefined;
+    logicFunction: FlatLogicFunction | undefined;
+  }> {
     const {
       flatMessagingProviderMaps,
       flatConnectionProviderMaps,
@@ -225,26 +242,20 @@ export class MessagingProviderMessageSenderService {
     });
 
     if (!isDefined(messagingProvider)) {
-      throw new MessagingProviderException(
-        `Message channel ${messageChannelId} has no messaging provider on its connection provider`,
-        notAvailableCode,
-      );
+      return { messagingProvider: undefined, logicFunction: undefined };
     }
 
-    const logicFunction = findApplicationFlatLogicFunction({
-      flatLogicFunctionMaps,
-      universalIdentifier:
-        getLogicFunctionUniversalIdentifier(messagingProvider),
-      applicationId: messagingProvider.applicationId,
-    });
-
-    if (!isDefined(logicFunction)) {
-      throw new MessagingProviderException(
-        `Messaging provider ${messagingProvider.id} has no ${logicFunctionLabel} logic function in its application`,
-        notAvailableCode,
-      );
-    }
-
-    return { messagingProvider, logicFunction };
+    return {
+      messagingProvider,
+      logicFunction: findApplicationFlatLogicFunction({
+        flatLogicFunctionMaps,
+        universalIdentifier:
+          getLogicFunctionUniversalIdentifier(messagingProvider),
+        applicationId: messagingProvider.applicationId,
+      }),
+    };
   }
 }
+
+const supportsConversationStart = (messagingProvider: FlatMessagingProvider) =>
+  messagingProvider.conversationStyle !== 'email';
