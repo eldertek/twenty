@@ -10,6 +10,7 @@ import { PermissionFlagType } from 'twenty-shared/constants';
 
 import { MetadataResolver } from 'src/engine/api/graphql/graphql-config/decorators/metadata-resolver.decorator';
 import { AuthGraphqlApiExceptionFilter } from 'src/engine/core-modules/auth/filters/auth-graphql-api-exception.filter';
+import { getWorkspaceAuthContext } from 'src/engine/core-modules/auth/storage/workspace-auth-context.storage';
 import { ResolverValidationPipe } from 'src/engine/core-modules/graphql/pipes/resolver-validation.pipe';
 import { UsageLimitGraphqlApiExceptionFilter } from 'src/engine/core-modules/usage-limit/filters/usage-limit-graphql-api-exception.filter';
 import { type FlatWorkspace } from 'src/engine/core-modules/workspace/types/flat-workspace.type';
@@ -81,6 +82,7 @@ export class ApplicationMessageSendResolver {
       userWorkspaceId,
       messageChannelId: input.messageChannelId,
       personId: input.personId,
+      callerAuthContext: getWorkspaceAuthContext(),
       text: input.text,
       idempotencyKey: input.idempotencyKey,
     });

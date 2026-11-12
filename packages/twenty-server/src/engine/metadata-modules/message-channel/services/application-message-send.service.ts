@@ -18,6 +18,7 @@ import {
 import { In, Repository } from 'typeorm';
 
 import { MAX_APP_MESSAGE_TEXT_LENGTH } from 'src/engine/metadata-modules/message-channel/dtos/ingest-app-messages.input';
+import { type WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { CacheLockService } from 'src/engine/core-modules/cache-lock/cache-lock.service';
 import { InjectCacheStorage } from 'src/engine/core-modules/cache-storage/decorators/cache-storage.decorator';
 import { CacheStorageService } from 'src/engine/core-modules/cache-storage/services/cache-storage.service';
@@ -47,6 +48,7 @@ import {
 import { MessagingProviderMessageSenderService } from 'src/engine/metadata-modules/messaging-provider/services/messaging-provider-message-sender.service';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
+import { PermissionsException } from 'src/engine/permissions/permissions.exception';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
@@ -74,6 +76,7 @@ type StartConversationArgs = Pick<
   'workspaceId' | 'userWorkspaceId' | 'messageChannelId' | 'idempotencyKey'
 > & {
   personId: string;
+  callerAuthContext: WorkspaceAuthContext;
   text: string;
 };
 
@@ -168,6 +171,7 @@ export class ApplicationMessageSendService {
     userWorkspaceId,
     messageChannelId,
     personId,
+    callerAuthContext,
     text,
     idempotencyKey,
   }: StartConversationArgs): Promise<SendAppChannelMessageOutput> {
@@ -189,6 +193,7 @@ export class ApplicationMessageSendService {
           connectionProviderId: sendableChannel.connectionProviderId,
           connectedAccountId: sendableChannel.connectedAccountId,
           personId,
+          callerAuthContext,
           idempotencyKey,
           text,
           deliveryKey,
@@ -469,6 +474,7 @@ export class ApplicationMessageSendService {
     connectionProviderId,
     connectedAccountId,
     personId,
+    callerAuthContext,
     idempotencyKey,
     text,
     deliveryKey,
@@ -478,6 +484,7 @@ export class ApplicationMessageSendService {
     connectionProviderId: string;
     connectedAccountId: string;
     personId: string;
+    callerAuthContext: WorkspaceAuthContext;
     idempotencyKey: string;
     text: string;
     deliveryKey: string;
@@ -497,6 +504,7 @@ export class ApplicationMessageSendService {
       workspaceId,
       messageChannel,
       personId,
+      callerAuthContext,
     });
 
     const startedConversation =
@@ -556,49 +564,66 @@ export class ApplicationMessageSendService {
     workspaceId,
     messageChannel,
     personId,
+    callerAuthContext,
   }: {
     workspaceId: string;
     messageChannel: Pick<MessageChannelEntity, 'id' | 'handle'>;
     personId: string;
+    callerAuthContext: WorkspaceAuthContext;
   }): Promise<StartAppConversationRecipient> {
-    const recipient = await this.workspaceOrmManager.executeInWorkspaceContext(
-      async () => {
-        const person = await this.workspaceOrmManager
-          .getRepositoryWithoutPermissionChecks<PersonWorkspaceEntity>('person')
-          .findOne({
-            where: { id: personId },
-            select: { id: true, name: true },
-          });
+    const person = await this.findPersonReadableByCaller({
+      personId,
+      callerAuthContext,
+    });
 
-        if (!isDefined(person)) {
-          return null;
-        }
-
-        const displayName = [person.name?.firstName, person.name?.lastName]
-          .filter(isNonEmptyString)
-          .join(' ');
-
-        return {
-          personId,
-          displayName: isNonEmptyString(displayName) ? displayName : null,
-          handle: await this.findKnownPersonHandle({
-            messageChannel,
-            personId,
-          }),
-        };
-      },
-      buildSystemAuthContext(workspaceId),
-      { lite: true },
-    );
-
-    if (!isDefined(recipient)) {
+    if (!isDefined(person)) {
       throw new MessageChannelException(
         `Person ${personId} not found`,
         MessageChannelExceptionCode.INVALID_MESSAGE_CHANNEL_INPUT,
       );
     }
 
-    return recipient;
+    const displayName = [person.name?.firstName, person.name?.lastName]
+      .filter(isNonEmptyString)
+      .join(' ');
+
+    return {
+      personId,
+      displayName: isNonEmptyString(displayName) ? displayName : null,
+      handle: await this.workspaceOrmManager.executeInWorkspaceContext(
+        () => this.findKnownPersonHandle({ messageChannel, personId }),
+        buildSystemAuthContext(workspaceId),
+        { lite: true },
+      ),
+    };
+  }
+
+  private async findPersonReadableByCaller({
+    personId,
+    callerAuthContext,
+  }: {
+    personId: string;
+    callerAuthContext: WorkspaceAuthContext;
+  }): Promise<Pick<PersonWorkspaceEntity, 'id' | 'name'> | null> {
+    try {
+      return await this.workspaceOrmManager.executeInWorkspaceContext(
+        () =>
+          this.workspaceOrmManager
+            .getRepository<PersonWorkspaceEntity>('person')
+            .findOne({
+              where: { id: personId },
+              select: { id: true, name: true },
+            }),
+        callerAuthContext,
+      );
+    } catch (error) {
+      // a person the caller may not read is reported as missing, not as forbidden
+      if (error instanceof PermissionsException) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   private async findKnownPersonHandle({
@@ -608,51 +633,32 @@ export class ApplicationMessageSendService {
     messageChannel: Pick<MessageChannelEntity, 'id' | 'handle'>;
     personId: string;
   }): Promise<string | null> {
-    const participants = (
-      await this.workspaceOrmManager
-        .getRepositoryWithoutPermissionChecks<MessageParticipantWorkspaceEntity>(
-          'messageParticipant',
-        )
-        .find({
-          where: { personId },
-          select: { messageId: true, handle: true },
-          order: { createdAt: 'DESC' },
-          take: CONVERSATION_LOOKUP_MESSAGE_LIMIT,
-        })
-    ).filter(
-      (participant): participant is typeof participant & { handle: string } =>
-        isNonEmptyString(participant.handle) &&
-        participant.handle.toLowerCase() !==
-          messageChannel.handle.toLowerCase(),
-    );
-
-    if (!isNonEmptyArray(participants)) {
-      return null;
-    }
-
-    const associations = await this.workspaceOrmManager
-      .getRepositoryWithoutPermissionChecks<MessageChannelMessageAssociationWorkspaceEntity>(
+    const participant = await this.workspaceOrmManager
+      .getRepositoryWithoutPermissionChecks<MessageParticipantWorkspaceEntity>(
+        'messageParticipant',
+      )
+      .createQueryBuilder('messageParticipant')
+      .select('messageParticipant.handle', 'handle')
+      .innerJoin('messageParticipant.message', 'message')
+      .innerJoin(
+        'message.messageChannelMessageAssociations',
         'messageChannelMessageAssociation',
       )
-      .find({
-        where: {
-          messageChannelId: messageChannel.id,
-          messageId: In(
-            participants.map((participant) => participant.messageId),
-          ),
-        },
-        select: { messageId: true },
-      });
+      .where('messageParticipant.personId = :personId', { personId })
+      .andWhere(
+        'messageChannelMessageAssociation.messageChannelId = :messageChannelId',
+        { messageChannelId: messageChannel.id },
+      )
+      .andWhere("messageParticipant.handle <> ''")
+      .andWhere(
+        'LOWER(messageParticipant.handle) <> LOWER(:messageChannelHandle)',
+        { messageChannelHandle: messageChannel.handle },
+      )
+      .orderBy('messageParticipant.createdAt', 'DESC')
+      .limit(1)
+      .getRawOne<{ handle: string }>();
 
-    const channelMessageIds = new Set(
-      associations.map((association) => association.messageId),
-    );
-
-    return (
-      participants.find((participant) =>
-        channelMessageIds.has(participant.messageId),
-      )?.handle ?? null
-    );
+    return participant?.handle ?? null;
   }
 
   private async findConversation({
