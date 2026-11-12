@@ -24,6 +24,8 @@ import { RecordPermissionsReadService } from 'src/engine/permissions/record-perm
 import { type WorkspaceSelectQueryBuilder } from 'src/engine/twenty-orm/query-builder/workspace-select-query-builder';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
+import { MessageDirection } from 'src/modules/messaging/common/enums/message-direction.enum';
+import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageThreadWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-thread.workspace-entity';
 
@@ -233,6 +235,114 @@ export class TimelineMessagingService {
     }
 
     return { ownedMessageChannelIds, subjectVisibleMessageChannelIds };
+  }
+
+  public async findUnreadMessageThreadIds({
+    messageThreadIds,
+    userWorkspaceId,
+    workspaceId,
+  }: {
+    messageThreadIds: string[];
+    userWorkspaceId: string;
+    workspaceId: string;
+  }): Promise<Set<string>> {
+    if (messageThreadIds.length === 0) {
+      return new Set();
+    }
+
+    const ownedMessageChannelIds = await this.findOwnedMessageChannelIds({
+      userWorkspaceId,
+      workspaceId,
+    });
+
+    if (ownedMessageChannelIds.length === 0) {
+      return new Set();
+    }
+
+    return this.workspaceOrmManager.executeInWorkspaceContext(async () => {
+      const unreadRows = await this.workspaceOrmManager
+        .getRepositoryWithoutPermissionChecks<MessageChannelMessageAssociationWorkspaceEntity>(
+          'messageChannelMessageAssociation',
+        )
+        .createQueryBuilder('messageChannelMessageAssociation')
+        .select('message.messageThreadId', 'messageThreadId')
+        .innerJoin('messageChannelMessageAssociation.message', 'message')
+        .where('message.messageThreadId = ANY(:messageThreadIds)', {
+          messageThreadIds,
+        })
+        .andWhere(
+          'messageChannelMessageAssociation.messageChannelId = ANY(:ownedMessageChannelIds)',
+          { ownedMessageChannelIds },
+        )
+        .andWhere('messageChannelMessageAssociation.isRead = false')
+        .andWhere('messageChannelMessageAssociation.direction = :direction', {
+          direction: MessageDirection.INCOMING,
+        })
+        .groupBy('message.messageThreadId')
+        .getRawMany<{ messageThreadId: string }>();
+
+      return new Set(unreadRows.map((row) => row.messageThreadId));
+    }, buildSystemAuthContext(workspaceId));
+  }
+
+  public async markMessageThreadAsRead({
+    messageThreadId,
+    userWorkspaceId,
+    workspaceId,
+  }: {
+    messageThreadId: string;
+    userWorkspaceId: string;
+    workspaceId: string;
+  }): Promise<void> {
+    const ownedMessageChannelIds = await this.findOwnedMessageChannelIds({
+      userWorkspaceId,
+      workspaceId,
+    });
+
+    if (ownedMessageChannelIds.length === 0) {
+      return;
+    }
+
+    await this.workspaceOrmManager.executeInWorkspaceContext(async () => {
+      const messageChannelMessageAssociationRepository =
+        this.workspaceOrmManager.getRepositoryWithoutPermissionChecks<MessageChannelMessageAssociationWorkspaceEntity>(
+          'messageChannelMessageAssociation',
+        );
+
+      const unreadAssociations =
+        await messageChannelMessageAssociationRepository.find({
+          where: {
+            messageChannelId: In(ownedMessageChannelIds),
+            isRead: false,
+            message: { messageThreadId },
+          },
+          select: { id: true },
+        });
+
+      if (unreadAssociations.length === 0) {
+        return;
+      }
+
+      await messageChannelMessageAssociationRepository.update(
+        { id: In(unreadAssociations.map(({ id }) => id)) },
+        { isRead: true },
+      );
+    }, buildSystemAuthContext(workspaceId));
+  }
+
+  private async findOwnedMessageChannelIds({
+    userWorkspaceId,
+    workspaceId,
+  }: {
+    userWorkspaceId: string;
+    workspaceId: string;
+  }): Promise<string[]> {
+    const ownedMessageChannels = await this.messageChannelRepository.find({
+      where: { workspaceId, connectedAccount: { userWorkspaceId } },
+      select: { id: true },
+    });
+
+    return ownedMessageChannels.map(({ id }) => id);
   }
 
   private applyRecordFilter(

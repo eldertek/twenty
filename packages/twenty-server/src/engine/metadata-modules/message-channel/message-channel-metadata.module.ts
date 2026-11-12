@@ -16,6 +16,7 @@ import { MessageChannelResolver } from 'src/engine/metadata-modules/message-chan
 import { ApplicationMessageChannelsService } from 'src/engine/metadata-modules/message-channel/services/application-message-channels.service';
 import { ApplicationMessageFoldersService } from 'src/engine/metadata-modules/message-channel/services/application-message-folders.service';
 import { ApplicationMessageIngestionService } from 'src/engine/metadata-modules/message-channel/services/application-message-ingestion.service';
+import { ApplicationMessageReadStateService } from 'src/engine/metadata-modules/message-channel/services/application-message-read-state.service';
 import { ApplicationMessageSendService } from 'src/engine/metadata-modules/message-channel/services/application-message-send.service';
 import { MessageFolderEntity } from 'src/engine/metadata-modules/message-folder/entities/message-folder.entity';
 import { MessagingProviderModule } from 'src/engine/metadata-modules/messaging-provider/messaging-provider.module';
@@ -53,6 +54,7 @@ import { WorkspaceCacheModule } from 'src/engine/workspace-cache/workspace-cache
     ApplicationMessageFoldersResolver,
     ApplicationMessageIngestionService,
     ApplicationMessageIngestionResolver,
+    ApplicationMessageReadStateService,
     ApplicationMessageSendService,
     ApplicationMessageSendResolver,
     provideWorkspaceScopedRepository(MessageFolderEntity),

@@ -2,6 +2,7 @@ import { styled } from '@linaria/react';
 
 import { ActivityRow } from '@/activities/components/ActivityRow';
 import { EmailThreadNotShared } from '@/activities/emails/components/EmailThreadNotShared';
+import { useMarkMessageThreadAsRead } from '@/activities/emails/hooks/useMarkMessageThreadAsRead';
 import { MessageChannelLogo } from '@/activities/emails/components/MessageChannelLogo';
 import { getEmailParticipantAvatarColorSeed } from '@/activities/emails/utils/getEmailParticipantAvatarColorSeed';
 import { getTimelineThreadLabel } from '@/activities/emails/utils/getTimelineThreadLabel';
@@ -19,7 +20,7 @@ import { formatToHumanReadableDate } from '~/utils/date-utils';
 import { getAbsoluteImageUrl } from '~/utils/image/getAbsoluteImageUrl';
 import { useLingui } from '@lingui/react/macro';
 
-const StyledHeading = styled.div<{ unread: boolean }>`
+const StyledHeading = styled.div`
   display: flex;
   max-width: 20%;
   overflow: hidden;
@@ -35,8 +36,12 @@ const StyledAvatarWrapper = styled.div`
   margin-left: calc(-1 * ${themeCssVariables.spacing[1]});
 `;
 
-const StyledSenderNames = styled.span`
+const StyledSenderNames = styled.span<{ isUnread: boolean }>`
+  color: ${({ isUnread }) =>
+    isUnread ? themeCssVariables.font.color.primary : 'inherit'};
   display: flex;
+  font-weight: ${({ isUnread }) =>
+    isUnread ? themeCssVariables.font.weight.medium : 'inherit'};
   margin: ${themeCssVariables.spacing[0]} ${themeCssVariables.spacing[1]};
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,8 +60,10 @@ const StyledSubjectAndBody = styled.div`
   overflow: hidden;
 `;
 
-const StyledSubject = styled.span`
+const StyledSubject = styled.span<{ isUnread: boolean }>`
   color: ${themeCssVariables.font.color.primary};
+  font-weight: ${({ isUnread }) =>
+    isUnread ? themeCssVariables.font.weight.medium : 'inherit'};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -100,8 +107,10 @@ export const EmailThreadPreview = ({
   const { t } = useLingui();
   const theme = useTheme();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
+  const { markMessageThreadAsRead } = useMarkMessageThreadAsRead();
 
   const visibility = thread.visibility;
+  const isUnread = !thread.read;
   const isChatThread = isChatTimelineThreadChannel(thread.channel);
 
   const senderNames =
@@ -146,6 +155,10 @@ export const EmailThreadPreview = ({
         recordId: thread.id,
         objectNameSingular: StandardObjectNameSingular.MessageThread,
       });
+
+      if (isUnread) {
+        markMessageThreadAsRead(thread.id);
+      }
     }
   };
 
@@ -162,7 +175,7 @@ export const EmailThreadPreview = ({
       divider={divider}
       label={label}
     >
-      <StyledHeading unread={!thread.read}>
+      <StyledHeading>
         <StyledParticipantsContainer>
           <Avatar
             src={getAbsoluteImageUrl(thread?.firstParticipant?.avatarUrl)}
@@ -202,7 +215,7 @@ export const EmailThreadPreview = ({
           )}
         </StyledParticipantsContainer>
 
-        <StyledSenderNames>{senderNames}</StyledSenderNames>
+        <StyledSenderNames isUnread={isUnread}>{senderNames}</StyledSenderNames>
         {!isChatThread && (
           <StyledThreadCount>
             {thread.numberOfMessagesInThread}
@@ -220,14 +233,22 @@ export const EmailThreadPreview = ({
         {visibility === MessageChannelVisibility.SUBJECT && (
           <>
             {draftTag}
-            {!isChatThread && <StyledSubject>{thread.subject}</StyledSubject>}
+            {!isChatThread && (
+              <StyledSubject isUnread={isUnread}>
+                {thread.subject}
+              </StyledSubject>
+            )}
             <EmailThreadNotShared visibility={visibility} />
           </>
         )}
         {visibility === MessageChannelVisibility.SHARE_EVERYTHING && (
           <>
             {draftTag}
-            {!isChatThread && <StyledSubject>{thread.subject}</StyledSubject>}
+            {!isChatThread && (
+              <StyledSubject isUnread={isUnread}>
+                {thread.subject}
+              </StyledSubject>
+            )}
             <StyledBody>{thread.lastMessageBody}</StyledBody>
           </>
         )}

@@ -5,6 +5,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsDate,
   IsEnum,
   IsNotEmpty,
@@ -116,6 +117,11 @@ export class AppMessageInput {
   @ValidateNested({ each: true })
   @Type(() => AppMessageParticipantInput)
   participants: AppMessageParticipantInput[];
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsBoolean()
+  isRead?: boolean;
 
   @Field(() => [String], { nullable: true })
   @IsOptional()

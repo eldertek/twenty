@@ -73,6 +73,15 @@ export const Default: Story = {
   },
 };
 
+export const Unread: Story = {
+  args: { thread: { ...thread, read: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await canvas.findByText('A quick hello from Twenty');
+  },
+};
+
 export const Draft: Story = {
   args: { thread: { ...thread, lastMessageIsDraft: true } },
   play: async ({ canvasElement }) => {

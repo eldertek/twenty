@@ -225,6 +225,7 @@ export class ApplicationMessageIngestionService {
       externalId: message.externalId,
       messageThreadExternalId: message.threadExternalId,
       messageFolderExternalIds: [...new Set(message.folderExternalIds ?? [])],
+      isRead: message.isRead,
       direction: resolveAppMessageDirection({
         participants: message.participants,
         channelHandle: messageChannel.handle,
