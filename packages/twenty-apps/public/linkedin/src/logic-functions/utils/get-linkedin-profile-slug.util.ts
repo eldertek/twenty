@@ -8,7 +8,6 @@ const decodeSlug = (slug: string): string => {
   }
 };
 
-// keeps the case, which internal ACo… profile ids need when sent back to Unipile
 export const getLinkedinProfileIdentifier = (url: string): string | null => {
   const slug = LINKEDIN_PROFILE_SLUG_PATTERN.exec(url)?.[1];
 

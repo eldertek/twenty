@@ -1,7 +1,6 @@
 export type StartAppConversationRecipient = {
   personId: string;
   displayName: string | null;
-  // set when Twenty already knows the person's handle on this channel, otherwise the app resolves it
   handle: string | null;
 };
 

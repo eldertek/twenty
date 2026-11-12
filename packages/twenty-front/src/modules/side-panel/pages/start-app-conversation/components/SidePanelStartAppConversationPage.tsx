@@ -77,7 +77,6 @@ export const SidePanelStartAppConversationPage = () => {
   const { startAppChannelConversation, loading } =
     useStartAppChannelConversation();
   const [text, setText] = useState('');
-  // kept across retries so a send the server already delivered is not sent twice
   const [idempotencyKey] = useState(() => v4());
 
   const canSend = isNonEmptyString(text.trim()) && !loading;
@@ -95,7 +94,6 @@ export const SidePanelStartAppConversationPage = () => {
         idempotencyKey,
       });
 
-      // the user may have discarded this composer or opened another page while sending
       const isComposerStillActive =
         store.get(isSidePanelOpenedState.atom) &&
         store.get(sidePanelNavigationStackState.atom).at(-1)?.pageId ===

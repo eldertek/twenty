@@ -9,7 +9,6 @@ import {
 
 type MessagingProviderConfig = Parameters<typeof defineMessagingProvider>[0];
 
-// startConversationLogicFunction ships in twenty-sdk 2.59; drop this type once the app pins it
 const linkedinMessagingProvider: MessagingProviderConfig & {
   startConversationLogicFunction: { universalIdentifier: string };
 } = {

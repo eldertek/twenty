@@ -40,7 +40,6 @@ export const linkedinStartConversationHandler = async ({
     recipient.handle ?? '',
   );
 
-  // stored handles are lowercased, which breaks case-sensitive internal ids
   const profileIdentifier =
     isNonEmptyString(knownProfileIdentifier) &&
     !isLinkedinInternalProfileId(knownProfileIdentifier)

@@ -617,7 +617,6 @@ export class ApplicationMessageSendService {
         callerAuthContext,
       );
     } catch (error) {
-      // a person the caller may not read is reported as missing, not as forbidden
       if (error instanceof PermissionsException) {
         return null;
       }

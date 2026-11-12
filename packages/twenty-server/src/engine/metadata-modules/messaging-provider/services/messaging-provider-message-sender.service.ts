@@ -69,7 +69,6 @@ export class MessagingProviderMessageSenderService {
         logicFunctionLabel: 'startConversation',
       });
 
-    // the start payload has no email block, so an email-style first message would go out without a subject
     if (messagingProvider.conversationStyle === 'email') {
       throw new MessagingProviderException(
         `Messaging provider ${messagingProvider.id} sends email-style messages: starting a conversation is not supported`,

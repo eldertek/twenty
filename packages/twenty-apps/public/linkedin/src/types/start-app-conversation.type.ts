@@ -1,4 +1,3 @@
-// mirrors twenty-sdk/logic-function from 2.59, drop once the app pins that version
 export type StartAppConversationRecipient = {
   personId: string;
   displayName: string | null;
