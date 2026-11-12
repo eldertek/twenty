@@ -32,7 +32,7 @@ export const WidgetActionMessageCompose = () => {
   );
 
   const conversationStartChannels = useConversationStartMessageChannels({
-    skip:
+    isSkipped:
       !hasSendPermission ||
       targetRecord.targetObjectNameSingular !==
         StandardObjectNameSingular.Person,

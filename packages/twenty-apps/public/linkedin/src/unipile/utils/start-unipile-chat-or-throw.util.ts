@@ -4,7 +4,7 @@ import { UnipileMessaging } from '@unipile/sdk';
 import { getUnipileRequestOptions } from 'src/unipile/utils/get-unipile-request-options.util';
 import { requestUnipile } from 'src/unipile/utils/request-unipile.util';
 
-export const startUnipileChat = async ({
+export const startUnipileChatOrThrow = async ({
   accountId,
   userId,
   text,

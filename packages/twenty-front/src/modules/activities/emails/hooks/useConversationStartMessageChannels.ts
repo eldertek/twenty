@@ -12,14 +12,14 @@ import {
 } from '~/generated-metadata/graphql';
 
 export const useConversationStartMessageChannels = ({
-  skip = false,
-}: { skip?: boolean } = {}): ConversationStartMessageChannel[] => {
+  isSkipped = false,
+}: { isSkipped?: boolean } = {}): ConversationStartMessageChannel[] => {
   const myConnectedAccounts = useAtomStateValue(myConnectedAccountsState);
   const { data } = useQuery(MyConversationStartMessageChannelsDocument, {
-    skip,
+    skip: isSkipped,
   });
 
-  if (skip) {
+  if (isSkipped) {
     return [];
   }
 

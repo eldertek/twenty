@@ -16,17 +16,17 @@ vi.mock('src/unipile/utils/get-unipile-request-options.util', () => ({
 
 vi.mock('src/utils/wait.util', () => ({ wait: mocks.wait }));
 
-const { startUnipileChat } =
-  await import('src/unipile/utils/start-unipile-chat.util');
+const { startUnipileChatOrThrow } =
+  await import('src/unipile/utils/start-unipile-chat-or-throw.util');
 
 const start = () =>
-  startUnipileChat({
+  startUnipileChatOrThrow({
     accountId: 'acc_1',
     userId: 'ACoAAA123',
     text: 'Hi Grace, nice to meet you',
   });
 
-describe('startUnipileChat', () => {
+describe('startUnipileChatOrThrow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   getConnection: vi.fn(),
   getPersonLinkedinLink: vi.fn(),
   getUnipileUser: vi.fn(),
-  startUnipileChat: vi.fn(),
+  startUnipileChatOrThrow: vi.fn(),
 }));
 
 vi.mock('twenty-sdk/logic-function', () => ({
@@ -19,8 +19,8 @@ vi.mock('src/unipile/utils/get-unipile-user.util', () => ({
   getUnipileUser: mocks.getUnipileUser,
 }));
 
-vi.mock('src/unipile/utils/start-unipile-chat.util', () => ({
-  startUnipileChat: mocks.startUnipileChat,
+vi.mock('src/unipile/utils/start-unipile-chat-or-throw.util', () => ({
+  startUnipileChatOrThrow: mocks.startUnipileChatOrThrow,
 }));
 
 const { linkedinStartConversationHandler } =
@@ -49,7 +49,7 @@ describe('linkedinStartConversationHandler', () => {
       display_name: 'Grace Hopper',
       public_identifier: 'grace-hopper',
     });
-    mocks.startUnipileChat.mockResolvedValue({
+    mocks.startUnipileChatOrThrow.mockResolvedValue({
       chatId: 'chat-1',
       messageId: 'message-1',
     });
@@ -77,7 +77,7 @@ describe('linkedinStartConversationHandler', () => {
       userId: 'Grace-Hopper',
       deadlineAtMs: expect.any(Number),
     });
-    expect(mocks.startUnipileChat).toHaveBeenCalledExactlyOnceWith({
+    expect(mocks.startUnipileChatOrThrow).toHaveBeenCalledExactlyOnceWith({
       accountId: 'acc_1',
       userId: 'ACoAAA123',
       text: 'Hi Grace, nice to meet you',
@@ -141,7 +141,7 @@ describe('linkedinStartConversationHandler', () => {
     ).rejects.toThrow(
       `Person ${PERSON_ID} has no LinkedIn profile URL: add one to start a LinkedIn conversation`,
     );
-    expect(mocks.startUnipileChat).not.toHaveBeenCalled();
+    expect(mocks.startUnipileChatOrThrow).not.toHaveBeenCalled();
   });
 
   it('refuses a group conversation', async () => {
@@ -155,7 +155,7 @@ describe('linkedinStartConversationHandler', () => {
     ).rejects.toThrow(
       'A LinkedIn conversation can only be started with one person',
     );
-    expect(mocks.startUnipileChat).not.toHaveBeenCalled();
+    expect(mocks.startUnipileChatOrThrow).not.toHaveBeenCalled();
   });
 
   it('refuses to start through a connection without a Unipile account', async () => {
@@ -166,11 +166,11 @@ describe('linkedinStartConversationHandler', () => {
     ).rejects.toThrow(
       'LinkedIn connection connected-account-id has no Unipile account',
     );
-    expect(mocks.startUnipileChat).not.toHaveBeenCalled();
+    expect(mocks.startUnipileChatOrThrow).not.toHaveBeenCalled();
   });
 
   it('fails the start when Unipile does', async () => {
-    mocks.startUnipileChat.mockRejectedValue(
+    mocks.startUnipileChatOrThrow.mockRejectedValue(
       new Error('Unipile start chat failed (403): Forbidden'),
     );
 

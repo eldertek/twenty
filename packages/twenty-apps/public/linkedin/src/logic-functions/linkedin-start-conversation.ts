@@ -12,7 +12,7 @@ import {
   type StartAppConversationResult,
 } from 'src/types/start-app-conversation.type';
 import { getUnipileUser } from 'src/unipile/utils/get-unipile-user.util';
-import { startUnipileChat } from 'src/unipile/utils/start-unipile-chat.util';
+import { startUnipileChatOrThrow } from 'src/unipile/utils/start-unipile-chat-or-throw.util';
 
 export const linkedinStartConversationHandler = async ({
   connectedAccountId,
@@ -61,7 +61,7 @@ export const linkedinStartConversationHandler = async ({
     deadlineAtMs: Date.now(),
   });
 
-  const { chatId, messageId } = await startUnipileChat({
+  const { chatId, messageId } = await startUnipileChatOrThrow({
     accountId: unipileAccountId,
     userId: user.id,
     text,
