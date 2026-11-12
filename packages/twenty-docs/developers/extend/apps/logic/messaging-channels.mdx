@@ -172,7 +172,7 @@ await setMessageThreadReadState({
 });
 ```
 
-Marking a thread read marks all its messages read. Marking it unread flags its latest incoming message, and leaves the thread as is when it already has an unread message.
+Marking a thread read marks all its messages read. Marking it unread flags its latest incoming message, and leaves the thread as is when it already has an unread message. Requires `"engines": { "twenty": ">=2.59.0" }`.
 
 ### Linking participants to People
 
