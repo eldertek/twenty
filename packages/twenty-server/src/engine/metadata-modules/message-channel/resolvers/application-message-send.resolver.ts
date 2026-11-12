@@ -18,6 +18,7 @@ import { AuthWorkspace } from 'src/engine/decorators/auth/auth-workspace.decorat
 import { ConnectedAccountGraphqlApiExceptionInterceptor } from 'src/engine/metadata-modules/connected-account/interceptors/connected-account-graphql-api-exception.interceptor';
 import { SendAppChannelMessageInput } from 'src/engine/metadata-modules/message-channel/dtos/send-app-channel-message.input';
 import { SendAppChannelMessageOutput } from 'src/engine/metadata-modules/message-channel/dtos/send-app-channel-message.output';
+import { StartAppChannelConversationInput } from 'src/engine/metadata-modules/message-channel/dtos/start-app-channel-conversation.input';
 import { MessageChannelGraphqlApiExceptionInterceptor } from 'src/engine/metadata-modules/message-channel/interceptors/message-channel-graphql-api-exception.interceptor';
 import { ApplicationMessageSendService } from 'src/engine/metadata-modules/message-channel/services/application-message-send.service';
 import { MessagingProviderGraphqlApiExceptionInterceptor } from 'src/engine/metadata-modules/messaging-provider/interceptors/messaging-provider-graphql-api-exception.interceptor';
@@ -65,6 +66,22 @@ export class ApplicationMessageSendResolver {
       messageThreadId: input.messageThreadId,
       text: input.text,
       email: input.email,
+      idempotencyKey: input.idempotencyKey,
+    });
+  }
+
+  @Mutation(() => SendAppChannelMessageOutput)
+  async startAppChannelConversation(
+    @AuthWorkspace() workspace: FlatWorkspace,
+    @AuthUserWorkspaceId() userWorkspaceId: string,
+    @Args('input') input: StartAppChannelConversationInput,
+  ): Promise<SendAppChannelMessageOutput> {
+    return this.applicationMessageSendService.startConversation({
+      workspaceId: workspace.id,
+      userWorkspaceId,
+      messageChannelId: input.messageChannelId,
+      personId: input.personId,
+      text: input.text,
       idempotencyKey: input.idempotencyKey,
     });
   }
