@@ -86,10 +86,10 @@ export class MessagingProviderMessageSenderService {
   async canStartConversation({
     messagingProviderUniversalIdentifier,
     workspaceId,
-  }: {
-    messagingProviderUniversalIdentifier: string | null;
-    workspaceId: string;
-  }): Promise<boolean> {
+  }: Pick<
+    MessagingProviderLookup,
+    'messagingProviderUniversalIdentifier' | 'workspaceId'
+  >): Promise<boolean> {
     if (!isDefined(messagingProviderUniversalIdentifier)) {
       return false;
     }

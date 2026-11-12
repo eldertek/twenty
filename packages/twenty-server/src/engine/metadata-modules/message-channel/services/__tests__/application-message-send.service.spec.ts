@@ -1,4 +1,5 @@
 import { MessageChannelType } from 'twenty-shared/types';
+import { isDefined } from 'twenty-shared/utils';
 
 import { type WorkspaceAuthContext } from 'src/engine/core-modules/auth/types/workspace-auth-context.type';
 import { MessageChannelExceptionCode } from 'src/engine/metadata-modules/message-channel/message-channel.exception';
@@ -53,7 +54,7 @@ const buildService = ({
   knownHandle?: string;
 }) => {
   const queryBuilder = buildQueryBuilder(
-    knownHandle === undefined ? undefined : { handle: knownHandle },
+    isDefined(knownHandle) ? { handle: knownHandle } : undefined,
   );
   const personRepository = { findOne: jest.fn(findPerson) };
   const workspaceOrmManager = {
