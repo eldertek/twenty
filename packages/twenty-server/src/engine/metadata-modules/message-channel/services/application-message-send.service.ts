@@ -130,6 +130,39 @@ export class ApplicationMessageSendService {
     private readonly cacheStorageService: CacheStorageService,
   ) {}
 
+  async canStartConversation({
+    messageChannel,
+    workspaceId,
+  }: {
+    messageChannel: Pick<
+      MessageChannelEntity,
+      'type' | 'connectedAccountId' | 'messagingProviderUniversalIdentifier'
+    >;
+    workspaceId: string;
+  }): Promise<boolean> {
+    if (messageChannel.type !== MessageChannelType.APP) {
+      return false;
+    }
+
+    const connectedAccount =
+      await this.connectedAccountMetadataService.findById({
+        id: messageChannel.connectedAccountId,
+        workspaceId,
+      });
+    const connectionProviderId = connectedAccount?.connectionProviderId;
+
+    if (!isDefined(connectionProviderId)) {
+      return false;
+    }
+
+    return this.messagingProviderMessageSenderService.canStartConversation({
+      messagingProviderUniversalIdentifier:
+        messageChannel.messagingProviderUniversalIdentifier,
+      connectionProviderId,
+      workspaceId,
+    });
+  }
+
   async send({
     workspaceId,
     userWorkspaceId,
