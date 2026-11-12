@@ -1,6 +1,7 @@
 import { styled } from '@linaria/react';
 import { useLingui } from '@lingui/react/macro';
 import { isNonEmptyString } from '@sniptt/guards';
+import { useStore } from 'jotai';
 import { useCallback, useState } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { StandardObjectNameSingular } from 'twenty-shared/types';
@@ -17,8 +18,12 @@ import { SIDE_PANEL_FOCUS_ID } from '@/side-panel/constants/SidePanelFocusId';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { useSidePanelHistory } from '@/side-panel/hooks/useSidePanelHistory';
 import { startAppConversationTargetComponentState } from '@/side-panel/pages/start-app-conversation/states/startAppConversationTargetComponentState';
+import { SidePanelPageComponentInstanceContext } from '@/side-panel/states/contexts/SidePanelPageComponentInstanceContext';
+import { isSidePanelOpenedState } from '@/side-panel/states/isSidePanelOpenedState';
+import { sidePanelNavigationStackState } from '@/side-panel/states/sidePanelNavigationStackState';
 import { SidePanelFooter } from '@/ui/layout/side-panel/components/SidePanelFooter';
 import { useHotkeysOnFocusedElement } from '@/ui/utilities/hotkey/hooks/useHotkeysOnFocusedElement';
+import { useAvailableComponentInstanceIdOrThrow } from '@/ui/utilities/state/component-state/hooks/useAvailableComponentInstanceIdOrThrow';
 import { useAtomComponentStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomComponentStateValue';
 
 const StyledContainer = styled.div`
@@ -59,6 +64,10 @@ const StyledTextarea = styled(TextareaAutosize)`
 
 export const SidePanelStartAppConversationPage = () => {
   const { t } = useLingui();
+  const store = useStore();
+  const sidePanelPageId = useAvailableComponentInstanceIdOrThrow(
+    SidePanelPageComponentInstanceContext,
+  );
   const startAppConversationTarget = useAtomComponentStateValue(
     startAppConversationTargetComponentState,
   );
@@ -86,6 +95,16 @@ export const SidePanelStartAppConversationPage = () => {
         idempotencyKey,
       });
 
+      // the user may have discarded this composer or opened another page while sending
+      const isComposerStillActive =
+        store.get(isSidePanelOpenedState.atom) &&
+        store.get(sidePanelNavigationStackState.atom).at(-1)?.pageId ===
+          sidePanelPageId;
+
+      if (!isComposerStillActive) {
+        return;
+      }
+
       if (!isDefined(messageThreadId)) {
         goBackFromSidePanel();
 
@@ -109,6 +128,8 @@ export const SidePanelStartAppConversationPage = () => {
     startAppChannelConversation,
     text,
     idempotencyKey,
+    store,
+    sidePanelPageId,
     goBackFromSidePanel,
     openRecordInSidePanel,
     enqueueToast,

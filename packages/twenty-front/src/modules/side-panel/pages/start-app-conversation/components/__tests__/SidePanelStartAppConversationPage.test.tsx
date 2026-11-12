@@ -5,10 +5,14 @@ import userEvent from '@testing-library/user-event';
 import { Provider as JotaiProvider } from 'jotai';
 import { type ReactNode } from 'react';
 import { SOURCE_LOCALE } from 'twenty-shared/translations';
+import { SidePanelPages } from 'twenty-shared/types';
+import { IconDotsVertical, IconMessage } from 'twenty-ui/icon';
 
 import { SidePanelStartAppConversationPage } from '@/side-panel/pages/start-app-conversation/components/SidePanelStartAppConversationPage';
 import { startAppConversationTargetComponentState } from '@/side-panel/pages/start-app-conversation/states/startAppConversationTargetComponentState';
 import { SidePanelPageComponentInstanceContext } from '@/side-panel/states/contexts/SidePanelPageComponentInstanceContext';
+import { isSidePanelOpenedState } from '@/side-panel/states/isSidePanelOpenedState';
+import { sidePanelNavigationStackState } from '@/side-panel/states/sidePanelNavigationStackState';
 import {
   jotaiStore,
   resetJotaiStore,
@@ -66,6 +70,15 @@ describe('SidePanelStartAppConversationPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetJotaiStore();
+    jotaiStore.set(isSidePanelOpenedState.atom, true);
+    jotaiStore.set(sidePanelNavigationStackState.atom, [
+      {
+        page: SidePanelPages.StartAppConversation,
+        pageTitle: 'New conversation',
+        pageIcon: IconMessage,
+        pageId: PAGE_ID,
+      },
+    ]);
     jotaiStore.set(
       startAppConversationTargetComponentState.atomFamily({
         instanceId: PAGE_ID,
@@ -130,5 +143,31 @@ describe('SidePanelStartAppConversationPage', () => {
     const [firstCall, secondCall] = startAppChannelConversation.mock.calls;
 
     expect(secondCall[0].idempotencyKey).toBe(firstCall[0].idempotencyKey);
+  });
+
+  it('leaves the side panel alone when the user moved on before the send finished', async () => {
+    const user = userEvent.setup();
+
+    startAppChannelConversation.mockImplementation(async () => {
+      jotaiStore.set(sidePanelNavigationStackState.atom, [
+        {
+          page: SidePanelPages.CommandMenuDisplay,
+          pageTitle: 'Command Menu',
+          pageIcon: IconDotsVertical,
+          pageId: 'command-menu',
+        },
+      ]);
+
+      return 'thread-1';
+    });
+
+    render(<SidePanelStartAppConversationPage />, { wrapper: Wrapper });
+
+    await user.type(screen.getByRole('textbox', { name: 'Message' }), 'Hi');
+    await user.click(screen.getByRole('button', { name: /Send/ }));
+
+    expect(startAppChannelConversation).toHaveBeenCalled();
+    expect(openRecordInSidePanel).not.toHaveBeenCalled();
+    expect(goBackFromSidePanel).not.toHaveBeenCalled();
   });
 });
