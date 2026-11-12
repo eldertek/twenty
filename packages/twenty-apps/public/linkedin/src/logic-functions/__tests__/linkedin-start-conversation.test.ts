@@ -84,8 +84,8 @@ describe('linkedinStartConversationHandler', () => {
     });
   });
 
-  it('uses the handle Twenty already knows instead of the LinkedIn field', async () => {
-    const knownHandle = 'https://www.linkedin.com/in/ACoAAA123';
+  it('uses the public profile handle Twenty already knows instead of the LinkedIn field', async () => {
+    const knownHandle = 'linkedin.com/in/grace-hopper';
 
     await expect(
       linkedinStartConversationHandler(buildPayload(knownHandle)),
@@ -95,8 +95,42 @@ describe('linkedinStartConversationHandler', () => {
 
     expect(mocks.getPersonLinkedinLink).not.toHaveBeenCalled();
     expect(mocks.getUnipileUser).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'grace-hopper' }),
+    );
+  });
+
+  it('reads the LinkedIn field when the known handle is a lowercased internal profile id', async () => {
+    const knownHandle = 'linkedin.com/in/acoaaa123';
+
+    mocks.getPersonLinkedinLink.mockResolvedValue(
+      'https://www.linkedin.com/in/ACoAAA123',
+    );
+
+    await expect(
+      linkedinStartConversationHandler(buildPayload(knownHandle)),
+    ).resolves.toMatchObject({
+      recipients: [{ personId: PERSON_ID, handle: knownHandle }],
+    });
+
+    expect(mocks.getPersonLinkedinLink).toHaveBeenCalledExactlyOnceWith(
+      PERSON_ID,
+    );
+    expect(mocks.getUnipileUser).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'ACoAAA123' }),
     );
+  });
+
+  it('refuses a known internal profile id when the LinkedIn field is empty', async () => {
+    mocks.getPersonLinkedinLink.mockResolvedValue(null);
+
+    await expect(
+      linkedinStartConversationHandler(
+        buildPayload('linkedin.com/in/acoaaa123'),
+      ),
+    ).rejects.toThrow(
+      `Person ${PERSON_ID} has no LinkedIn profile URL: add one to start a LinkedIn conversation`,
+    );
+    expect(mocks.getUnipileUser).not.toHaveBeenCalled();
   });
 
   it('refuses a person without a LinkedIn profile URL', async () => {

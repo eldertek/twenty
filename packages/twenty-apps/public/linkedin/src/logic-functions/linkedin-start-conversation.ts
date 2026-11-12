@@ -6,6 +6,7 @@ import { LINKEDIN_START_CONVERSATION_UNIVERSAL_IDENTIFIER } from 'src/constants/
 import { buildLinkedinProfileHandle } from 'src/logic-functions/utils/build-linkedin-profile-handle.util';
 import { getLinkedinProfileIdentifier } from 'src/logic-functions/utils/get-linkedin-profile-slug.util';
 import { getPersonLinkedinLink } from 'src/logic-functions/utils/get-person-linkedin-link.util';
+import { isLinkedinInternalProfileId } from 'src/logic-functions/utils/is-linkedin-internal-profile-id.util';
 import {
   type StartAppConversationPayload,
   type StartAppConversationResult,
@@ -35,9 +36,18 @@ export const linkedinStartConversationHandler = async ({
     );
   }
 
-  const profileUrl =
-    recipient.handle ?? (await getPersonLinkedinLink(recipient.personId));
-  const profileIdentifier = getLinkedinProfileIdentifier(profileUrl ?? '');
+  const knownProfileIdentifier = getLinkedinProfileIdentifier(
+    recipient.handle ?? '',
+  );
+
+  // stored handles are lowercased, which breaks case-sensitive internal ids
+  const profileIdentifier =
+    isNonEmptyString(knownProfileIdentifier) &&
+    !isLinkedinInternalProfileId(knownProfileIdentifier)
+      ? knownProfileIdentifier
+      : getLinkedinProfileIdentifier(
+          (await getPersonLinkedinLink(recipient.personId)) ?? '',
+        );
 
   if (profileIdentifier === null) {
     throw new Error(
