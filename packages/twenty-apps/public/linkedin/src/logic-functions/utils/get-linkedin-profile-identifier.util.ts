@@ -1,3 +1,5 @@
+import { isNonEmptyString } from '@sniptt/guards';
+
 const LINKEDIN_PROFILE_SLUG_PATTERN = /linkedin\.com\/in\/([^/?#]+)/i;
 
 const decodeSlug = (slug: string): string => {
@@ -11,5 +13,5 @@ const decodeSlug = (slug: string): string => {
 export const getLinkedinProfileIdentifier = (url: string): string | null => {
   const slug = LINKEDIN_PROFILE_SLUG_PATTERN.exec(url)?.[1];
 
-  return slug ? decodeSlug(slug).normalize('NFC') : null;
+  return isNonEmptyString(slug) ? decodeSlug(slug).normalize('NFC') : null;
 };
