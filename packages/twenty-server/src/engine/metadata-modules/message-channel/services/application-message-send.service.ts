@@ -299,7 +299,7 @@ export class ApplicationMessageSendService {
   }: {
     workspaceId: string;
     userWorkspaceId: string;
-    sendableChannel: SendableChannel;
+    sendableChannel: Pick<SendableChannel, 'messageChannel' | 'applicationId'>;
     deliveryKey: string;
     deliver: (deliveryKey: string) => Promise<AppMessageDelivery>;
   }): Promise<SendAppChannelMessageOutput> {
