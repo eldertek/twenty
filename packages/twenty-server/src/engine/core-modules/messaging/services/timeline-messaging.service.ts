@@ -26,6 +26,7 @@ import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { MessageDirection } from 'src/modules/messaging/common/enums/message-direction.enum';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
+import { isMessageReadStateProvisioned } from 'src/modules/messaging/common/utils/is-message-read-state-provisioned.util';
 import { type MessageParticipantWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-participant.workspace-entity';
 import { type MessageThreadWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-thread.workspace-entity';
 
@@ -246,7 +247,13 @@ export class TimelineMessagingService {
     userWorkspaceId: string;
     workspaceId: string;
   }): Promise<Set<string>> {
-    if (messageThreadIds.length === 0) {
+    if (
+      messageThreadIds.length === 0 ||
+      !(await isMessageReadStateProvisioned({
+        workspaceCacheService: this.workspaceCacheService,
+        workspaceId,
+      }))
+    ) {
       return new Set();
     }
 
@@ -294,6 +301,15 @@ export class TimelineMessagingService {
     userWorkspaceId: string;
     workspaceId: string;
   }): Promise<void> {
+    if (
+      !(await isMessageReadStateProvisioned({
+        workspaceCacheService: this.workspaceCacheService,
+        workspaceId,
+      }))
+    ) {
+      return;
+    }
+
     const ownedMessageChannelIds = await this.findOwnedMessageChannelIds({
       userWorkspaceId,
       workspaceId,

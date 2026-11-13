@@ -6,8 +6,10 @@ import { In } from 'typeorm';
 import { type SetAppMessageThreadReadStateOutput } from 'src/engine/metadata-modules/message-channel/dtos/set-app-message-thread-read-state.output';
 import { ApplicationMessageChannelsService } from 'src/engine/metadata-modules/message-channel/services/application-message-channels.service';
 import { computeAppMessageThreadReadStateUpdate } from 'src/engine/metadata-modules/message-channel/utils/compute-app-message-thread-read-state-update.util';
+import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
+import { isMessageReadStateProvisioned } from 'src/modules/messaging/common/utils/is-message-read-state-provisioned.util';
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 
 @Injectable()
@@ -15,6 +17,7 @@ export class ApplicationMessageReadStateService {
   constructor(
     private readonly applicationMessageChannelsService: ApplicationMessageChannelsService,
     private readonly workspaceOrmManager: WorkspaceOrmManager,
+    private readonly workspaceCacheService: WorkspaceCacheService,
   ) {}
 
   async setThreadReadState({
@@ -38,6 +41,15 @@ export class ApplicationMessageReadStateService {
       requestUserWorkspaceId,
       id: messageChannelId,
     });
+
+    if (
+      !(await isMessageReadStateProvisioned({
+        workspaceCacheService: this.workspaceCacheService,
+        workspaceId,
+      }))
+    ) {
+      return { updatedMessageCount: 0 };
+    }
 
     return this.workspaceOrmManager.executeInWorkspaceContext(
       async () => {

@@ -1,5 +1,6 @@
 import { type Meta, type StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { graphql, HttpResponse } from 'msw';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import { EmailThreadPreview } from '@/activities/emails/components/EmailThreadPreview';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
@@ -10,6 +11,8 @@ import {
   MessageChannelVisibility,
   type TimelineThread,
 } from '~/generated/graphql';
+import { graphqlMocks } from '~/testing/graphqlMocks';
+import { ToastDecorator } from '~/testing/decorators/ToastDecorator';
 import { MemoryRouterDecorator } from '~/testing/decorators/MemoryRouterDecorator';
 import { ObjectMetadataItemsDecorator } from '~/testing/decorators/ObjectMetadataItemsDecorator';
 import { mockCurrentWorkspace } from '~/testing/mock-data/users';
@@ -79,6 +82,43 @@ export const Unread: Story = {
     const canvas = within(canvasElement);
 
     await canvas.findByText('A quick hello from Twenty');
+  },
+};
+
+const markMessageThreadAsRead = fn();
+
+export const UnreadWhenMarkingAsReadFails: Story = {
+  args: { thread: { ...thread, read: false } },
+  decorators: [ToastDecorator],
+  beforeEach: () => {
+    markMessageThreadAsRead.mockClear();
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        graphql.mutation('MarkMessageThreadAsRead', ({ variables }) => {
+          markMessageThreadAsRead(variables);
+
+          return HttpResponse.json({
+            errors: [{ message: 'Could not mark the thread as read' }],
+          });
+        }),
+        ...graphqlMocks.handlers,
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    const subject = await canvas.findByText('A quick hello from Twenty');
+
+    await userEvent.click(subject);
+    await expect(
+      await body.findByText('Could not mark the thread as read'),
+    ).toBeVisible();
+
+    await userEvent.click(subject);
+    await expect(markMessageThreadAsRead).toHaveBeenCalledTimes(2);
   },
 };
 
