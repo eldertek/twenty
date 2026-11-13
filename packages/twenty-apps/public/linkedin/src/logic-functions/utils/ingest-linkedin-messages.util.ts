@@ -18,7 +18,6 @@ import { isLinkedinGroupChat } from 'src/logic-functions/utils/is-linkedin-group
 import { mapUnipileMessageToIngestMessage } from 'src/logic-functions/utils/map-unipile-message-to-ingest-message.util';
 import { matchLinkedinParticipantPersonId } from 'src/logic-functions/utils/match-linkedin-participant-person-id.util';
 import { setMissingLinkedinPersonAvatars } from 'src/logic-functions/utils/set-missing-linkedin-person-avatars.util';
-import { syncLinkedinChatReadState } from 'src/logic-functions/utils/sync-linkedin-chat-read-state.util';
 import { splitLinkedinUserName } from 'src/logic-functions/utils/split-linkedin-user-name.util';
 import { type LinkedinCounterpartResolver } from 'src/logic-functions/types/linkedin-counterpart-resolver.type';
 import { type LinkedinIngestResult } from 'src/logic-functions/types/linkedin-ingest-result.type';
@@ -256,8 +255,6 @@ export const ingestLinkedinMessages = async ({
       })),
     );
   }
-
-  await syncLinkedinChatReadState({ messageChannelId: channel.id, chat });
 
   const messageExternalIdsToAttach = new Set(
     ingestedMessages

@@ -71,6 +71,8 @@ const ingestUnipileMessage = async ({
     };
   }
 
+  await syncLinkedinChatReadState({ messageChannelId: channel.id, chat });
+
   return { handled: true };
 };
 

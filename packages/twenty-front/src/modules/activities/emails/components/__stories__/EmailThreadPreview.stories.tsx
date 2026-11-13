@@ -3,6 +3,7 @@ import { graphql, HttpResponse } from 'msw';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { EmailThreadPreview } from '@/activities/emails/components/EmailThreadPreview';
+import { currentUserWorkspaceState } from '@/auth/states/currentUserWorkspaceState';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
 import { jotaiStore } from '@/ui/utilities/state/jotai/jotaiStore';
 import { ComponentDecorator } from 'twenty-ui/testing';
@@ -120,6 +121,43 @@ export const UnreadWhenMarkingAsReadFails: Story = {
     await waitFor(() =>
       expect(markMessageThreadAsRead).toHaveBeenCalledTimes(2),
     );
+  },
+};
+
+export const UnreadWhileImpersonating: Story = {
+  args: { thread: { ...thread, read: false } },
+  beforeEach: () => {
+    markMessageThreadAsRead.mockClear();
+    jotaiStore.set(currentUserWorkspaceState.atom, {
+      permissionFlags: [],
+      twoFactorAuthenticationMethodSummary: [],
+      isImpersonating: true,
+      objectRecordsPermissions: [],
+    });
+
+    return () => {
+      jotaiStore.set(currentUserWorkspaceState.atom, null);
+    };
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        graphql.mutation('MarkMessageThreadAsRead', ({ variables }) => {
+          markMessageThreadAsRead(variables);
+
+          return HttpResponse.json({
+            data: { markMessageThreadAsRead: true },
+          });
+        }),
+        ...graphqlMocks.handlers,
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(await canvas.findByText('A quick hello from Twenty'));
+    await expect(markMessageThreadAsRead).not.toHaveBeenCalled();
   },
 };
 

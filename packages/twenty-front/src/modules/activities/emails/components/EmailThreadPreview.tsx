@@ -7,6 +7,8 @@ import { MessageChannelLogo } from '@/activities/emails/components/MessageChanne
 import { getEmailParticipantAvatarColorSeed } from '@/activities/emails/utils/getEmailParticipantAvatarColorSeed';
 import { getTimelineThreadLabel } from '@/activities/emails/utils/getTimelineThreadLabel';
 import { isChatTimelineThreadChannel } from '@/activities/emails/utils/isChatTimelineThreadChannel';
+import { isImpersonatingState } from '@/auth/states/isImpersonatingState';
+import { useAtomStateValue } from '@/ui/utilities/state/jotai/hooks/useAtomStateValue';
 import { useOpenRecordInSidePanel } from '@/side-panel/hooks/useOpenRecordInSidePanel';
 import { StandardObjectNameSingular } from 'twenty-shared/types';
 import { isDefined } from 'twenty-shared/utils';
@@ -108,6 +110,7 @@ export const EmailThreadPreview = ({
   const theme = useTheme();
   const { openRecordInSidePanel } = useOpenRecordInSidePanel();
   const { markMessageThreadAsRead } = useMarkMessageThreadAsRead();
+  const isImpersonating = useAtomStateValue(isImpersonatingState);
 
   const visibility = thread.visibility;
   const isUnread = !thread.read;
@@ -156,7 +159,7 @@ export const EmailThreadPreview = ({
         objectNameSingular: StandardObjectNameSingular.MessageThread,
       });
 
-      if (isUnread) {
+      if (isUnread && !isImpersonating) {
         markMessageThreadAsRead(thread.id);
       }
     }
