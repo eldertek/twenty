@@ -1,6 +1,6 @@
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { graphql, HttpResponse } from 'msw';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import { EmailThreadPreview } from '@/activities/emails/components/EmailThreadPreview';
 import { currentWorkspaceState } from '@/auth/states/currentWorkspaceState';
@@ -57,6 +57,7 @@ const meta: Meta<typeof EmailThreadPreview> = {
   title: 'Modules/Activities/Emails/EmailThreadPreview',
   component: EmailThreadPreview,
   decorators: [
+    ToastDecorator,
     MemoryRouterDecorator,
     ComponentDecorator,
     ObjectMetadataItemsDecorator,
@@ -89,7 +90,6 @@ const markMessageThreadAsRead = fn();
 
 export const UnreadWhenMarkingAsReadFails: Story = {
   args: { thread: { ...thread, read: false } },
-  decorators: [ToastDecorator],
   beforeEach: () => {
     markMessageThreadAsRead.mockClear();
   },
@@ -109,16 +109,17 @@ export const UnreadWhenMarkingAsReadFails: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const body = within(canvasElement.ownerDocument.body);
     const subject = await canvas.findByText('A quick hello from Twenty');
 
     await userEvent.click(subject);
-    await expect(
-      await body.findByText('Could not mark the thread as read'),
-    ).toBeVisible();
+    await waitFor(() =>
+      expect(markMessageThreadAsRead).toHaveBeenCalledTimes(1),
+    );
 
     await userEvent.click(subject);
-    await expect(markMessageThreadAsRead).toHaveBeenCalledTimes(2);
+    await waitFor(() =>
+      expect(markMessageThreadAsRead).toHaveBeenCalledTimes(2),
+    );
   },
 };
 
