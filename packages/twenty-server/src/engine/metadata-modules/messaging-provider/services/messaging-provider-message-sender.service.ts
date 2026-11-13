@@ -21,6 +21,7 @@ import { type MessagingProviderSender } from 'src/engine/metadata-modules/messag
 import { findMessagingProviderOnConnectionProvider } from 'src/engine/metadata-modules/messaging-provider/utils/find-messaging-provider-on-connection-provider.util';
 import { parseSendAppMessageResult } from 'src/engine/metadata-modules/messaging-provider/utils/parse-send-app-message-result.util';
 import { parseStartAppConversationResult } from 'src/engine/metadata-modules/messaging-provider/utils/parse-start-app-conversation-result.util';
+import { supportsConversationStart } from 'src/engine/metadata-modules/messaging-provider/utils/supports-conversation-start.util';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 
 type MessagingProviderLookup = {
@@ -256,6 +257,3 @@ export class MessagingProviderMessageSenderService {
     };
   }
 }
-
-const supportsConversationStart = (messagingProvider: FlatMessagingProvider) =>
-  messagingProvider.conversationStyle !== 'email';
