@@ -1,10 +1,26 @@
 import { MetadataApiClient } from 'twenty-client-sdk/metadata';
 import { isDefined } from 'twenty-sdk/utils';
 
-import { getLinkedinChatReadState } from 'src/logic-functions/utils/get-linkedin-chat-read-state.util';
 import { type UnipileChat } from 'src/unipile/types/unipile-chat.type';
 
 type MetadataMutationSelection = Parameters<MetadataApiClient['mutation']>[0];
+
+const UNIPILE_MANUALLY_UNREAD_COUNT = -1;
+
+// unread messages already arrive unread on ingestion; pushing unread for them again would undo a read made in Twenty
+const getThreadReadStateToApply = (
+  unreadCount: number | undefined,
+): boolean | undefined => {
+  if (unreadCount === 0) {
+    return true;
+  }
+
+  if (unreadCount === UNIPILE_MANUALLY_UNREAD_COUNT) {
+    return false;
+  }
+
+  return undefined;
+};
 
 export const syncLinkedinChatReadState = async ({
   messageChannelId,
@@ -13,7 +29,7 @@ export const syncLinkedinChatReadState = async ({
   messageChannelId: string;
   chat: Pick<UnipileChat, 'id' | 'unread_count'>;
 }): Promise<boolean> => {
-  const isRead = getLinkedinChatReadState(chat);
+  const isRead = getThreadReadStateToApply(chat.unread_count);
 
   if (!isDefined(isRead)) {
     return false;

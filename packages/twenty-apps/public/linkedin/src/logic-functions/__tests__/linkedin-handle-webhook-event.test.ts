@@ -297,7 +297,7 @@ describe('linkedinHandleWebhookEventHandler', () => {
     });
   });
 
-  it('ingests a message of an unread chat as unread and syncs the chat read state', async () => {
+  it('ingests a message of an unread chat as unread without re-flagging the thread', async () => {
     mocks.getUnipileChat.mockResolvedValue({
       id: 'chat-1',
       name: 'Daphné Müller',
@@ -318,6 +318,52 @@ describe('linkedinHandleWebhookEventHandler', () => {
     expect(mocks.ingestMessages.mock.calls[0][0].messages[0].isRead).toBe(
       false,
     );
+    expect(mocks.metadataMutation).not.toHaveBeenCalled();
+  });
+
+  it('keeps a thread read in Twenty when LinkedIn still counts it unread', async () => {
+    mocks.getUnipileChat.mockResolvedValue({
+      id: 'chat-1',
+      name: 'Daphné Müller',
+      is_group: false,
+      is_1to1: true,
+      unread_count: 2,
+    });
+
+    await expect(
+      linkedinHandleWebhookEventHandler({
+        id: 'evt_4',
+        created_at: '2026-10-29T08:00:00.000Z',
+        account_id: 'acc_1',
+        account_provider: 'linkedin',
+        type: 'chat.update',
+        payload: { id: 'chat-1' },
+      }),
+    ).resolves.toEqual({
+      handled: false,
+      reason: 'Chat read state needs no change in Twenty',
+    });
+    expect(mocks.metadataMutation).not.toHaveBeenCalled();
+  });
+
+  it('mirrors a chat marked unread on LinkedIn into Twenty', async () => {
+    mocks.getUnipileChat.mockResolvedValue({
+      id: 'chat-1',
+      name: 'Daphné Müller',
+      is_group: false,
+      is_1to1: true,
+      unread_count: -1,
+    });
+
+    await linkedinHandleWebhookEventHandler({
+      id: 'evt_5',
+      created_at: '2026-10-29T08:00:00.000Z',
+      account_id: 'acc_1',
+      account_provider: 'linkedin',
+      type: 'chat.update',
+      payload: { id: 'chat-1' },
+    });
+
     expect(mocks.metadataMutation).toHaveBeenCalledExactlyOnceWith({
       setAppMessageThreadReadState: {
         __args: {

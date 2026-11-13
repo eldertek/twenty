@@ -25,7 +25,7 @@ describe('refreshLinkedinChatReadState', () => {
   });
 
   it('applies the read state LinkedIn reports now', async () => {
-    mocks.getUnipileChat.mockResolvedValue({ id: 'chat-1', unread_count: 2 });
+    mocks.getUnipileChat.mockResolvedValue({ id: 'chat-1', unread_count: -1 });
 
     await refreshLinkedinChatReadState({
       unipileAccountId: 'acc_1',

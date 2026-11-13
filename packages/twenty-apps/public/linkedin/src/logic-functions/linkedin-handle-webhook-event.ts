@@ -107,7 +107,7 @@ const syncUnipileChatReadState = async ({
 
   return isSynced
     ? { handled: true }
-    : { handled: false, reason: 'Chat carries no read state' };
+    : { handled: false, reason: 'Chat read state needs no change in Twenty' };
 };
 
 export const linkedinHandleWebhookEventHandler = async (
