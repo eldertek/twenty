@@ -6,6 +6,7 @@ export type MessagingProviderManifest = SyncableEntityOptions & {
   displayName: string;
   connectionProvider: SyncableEntityOptions;
   sendMessageLogicFunction?: SyncableEntityOptions;
+  markThreadAsReadLogicFunction?: SyncableEntityOptions;
   startConversationLogicFunction?: SyncableEntityOptions;
   conversationStyle?: MessagingProviderConversationStyle;
 };

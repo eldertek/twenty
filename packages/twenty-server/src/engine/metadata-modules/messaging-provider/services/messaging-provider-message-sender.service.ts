@@ -10,24 +10,21 @@ import { isDefined } from 'twenty-shared/utils';
 
 import { LogicFunctionExecutorService } from 'src/engine/core-modules/logic-function/logic-function-executor/logic-function-executor.service';
 import { type FlatMessagingProvider } from 'src/engine/metadata-modules/flat-messaging-provider/types/flat-messaging-provider.type';
-import { type FlatLogicFunction } from 'src/engine/metadata-modules/logic-function/types/flat-logic-function.type';
-import { findApplicationFlatLogicFunction } from 'src/engine/metadata-modules/logic-function/utils/find-application-flat-logic-function.util';
 import {
   MessagingProviderException,
   MessagingProviderExceptionCode,
 } from 'src/engine/metadata-modules/messaging-provider/messaging-provider.exception';
 import { type MessagingProviderConversationStarter } from 'src/engine/metadata-modules/messaging-provider/types/messaging-provider-conversation-starter.type';
 import { type MessagingProviderSender } from 'src/engine/metadata-modules/messaging-provider/types/messaging-provider-sender.type';
-import { findMessagingProviderOnConnectionProvider } from 'src/engine/metadata-modules/messaging-provider/utils/find-messaging-provider-on-connection-provider.util';
+import { findMessagingProviderLogicFunction } from 'src/engine/metadata-modules/messaging-provider/utils/find-messaging-provider-logic-function.util';
 import { parseSendAppMessageResult } from 'src/engine/metadata-modules/messaging-provider/utils/parse-send-app-message-result.util';
 import { parseStartAppConversationResult } from 'src/engine/metadata-modules/messaging-provider/utils/parse-start-app-conversation-result.util';
 import { supportsConversationStart } from 'src/engine/metadata-modules/messaging-provider/utils/supports-conversation-start.util';
 import { WorkspaceCacheService } from 'src/engine/workspace-cache/services/workspace-cache.service';
 
-type MessagingProviderLookup = {
+type ConversationStarterLookup = {
   messagingProviderUniversalIdentifier: string | null;
   connectionProviderId: string;
-  messageChannelId: string;
   workspaceId: string;
 };
 
@@ -38,37 +35,86 @@ export class MessagingProviderMessageSenderService {
     private readonly logicFunctionExecutorService: LogicFunctionExecutorService,
   ) {}
 
-  async resolveSenderOrThrow(
-    lookup: MessagingProviderLookup,
-  ): Promise<MessagingProviderSender> {
-    const { messagingProvider, logicFunction } =
-      await this.resolveLogicFunctionOrThrow({
-        ...lookup,
+  async resolveSenderOrThrow({
+    messagingProviderUniversalIdentifier,
+    connectionProviderId,
+    messageChannelId,
+    workspaceId,
+  }: {
+    messagingProviderUniversalIdentifier: string | null;
+    connectionProviderId: string;
+    messageChannelId: string;
+    workspaceId: string;
+  }): Promise<MessagingProviderSender> {
+    const {
+      flatMessagingProviderMaps,
+      flatConnectionProviderMaps,
+      flatLogicFunctionMaps,
+    } = await this.workspaceCacheService.getOrRecompute(workspaceId, [
+      'flatMessagingProviderMaps',
+      'flatConnectionProviderMaps',
+      'flatLogicFunctionMaps',
+    ]);
+
+    const { messagingProvider, logicFunction: sendMessageLogicFunction } =
+      findMessagingProviderLogicFunction({
+        flatMessagingProviderMaps,
+        flatConnectionProviderMaps,
+        flatLogicFunctionMaps,
+        messagingProviderUniversalIdentifier,
+        connectionProviderId,
         getLogicFunctionUniversalIdentifier: (provider) =>
           provider.sendMessageLogicFunctionUniversalIdentifier,
-        notAvailableCode:
-          MessagingProviderExceptionCode.SEND_MESSAGE_NOT_AVAILABLE,
-        logicFunctionLabel: 'sendMessage',
       });
+
+    if (!isDefined(messagingProvider)) {
+      throw new MessagingProviderException(
+        `Message channel ${messageChannelId} has no messaging provider on its connection provider`,
+        MessagingProviderExceptionCode.SEND_MESSAGE_NOT_AVAILABLE,
+      );
+    }
+
+    if (!isDefined(sendMessageLogicFunction)) {
+      throw new MessagingProviderException(
+        `Messaging provider ${messagingProvider.id} has no sendMessage logic function in its application`,
+        MessagingProviderExceptionCode.SEND_MESSAGE_NOT_AVAILABLE,
+      );
+    }
 
     return {
       messagingProvider,
-      sendMessageLogicFunctionId: logicFunction.id,
+      sendMessageLogicFunctionId: sendMessageLogicFunction.id,
     };
   }
 
-  async resolveConversationStarterOrThrow(
-    lookup: MessagingProviderLookup,
-  ): Promise<MessagingProviderConversationStarter> {
+  async resolveConversationStarterOrThrow({
+    messagingProviderUniversalIdentifier,
+    connectionProviderId,
+    messageChannelId,
+    workspaceId,
+  }: ConversationStarterLookup & {
+    messageChannelId: string;
+  }): Promise<MessagingProviderConversationStarter> {
     const { messagingProvider, logicFunction } =
-      await this.resolveLogicFunctionOrThrow({
-        ...lookup,
-        getLogicFunctionUniversalIdentifier: (provider) =>
-          provider.startConversationLogicFunctionUniversalIdentifier,
-        notAvailableCode:
-          MessagingProviderExceptionCode.START_CONVERSATION_NOT_AVAILABLE,
-        logicFunctionLabel: 'startConversation',
+      await this.findStartConversationLogicFunction({
+        messagingProviderUniversalIdentifier,
+        connectionProviderId,
+        workspaceId,
       });
+
+    if (!isDefined(messagingProvider)) {
+      throw new MessagingProviderException(
+        `Message channel ${messageChannelId} has no messaging provider on its connection provider`,
+        MessagingProviderExceptionCode.START_CONVERSATION_NOT_AVAILABLE,
+      );
+    }
+
+    if (!isDefined(logicFunction)) {
+      throw new MessagingProviderException(
+        `Messaging provider ${messagingProvider.id} has no startConversation logic function in its application`,
+        MessagingProviderExceptionCode.START_CONVERSATION_NOT_AVAILABLE,
+      );
+    }
 
     if (!supportsConversationStart(messagingProvider)) {
       throw new MessagingProviderException(
@@ -84,13 +130,10 @@ export class MessagingProviderMessageSenderService {
   }
 
   async canStartConversation(
-    lookup: Omit<MessagingProviderLookup, 'messageChannelId'>,
+    lookup: ConversationStarterLookup,
   ): Promise<boolean> {
-    const { messagingProvider, logicFunction } = await this.findLogicFunction({
-      ...lookup,
-      getLogicFunctionUniversalIdentifier: (provider) =>
-        provider.startConversationLogicFunctionUniversalIdentifier,
-    });
+    const { messagingProvider, logicFunction } =
+      await this.findStartConversationLogicFunction(lookup);
 
     return (
       isDefined(messagingProvider) &&
@@ -168,63 +211,11 @@ export class MessagingProviderMessageSenderService {
     return parsedResult.startedConversation;
   }
 
-  private async resolveLogicFunctionOrThrow({
-    messagingProviderUniversalIdentifier,
-    connectionProviderId,
-    messageChannelId,
-    workspaceId,
-    getLogicFunctionUniversalIdentifier,
-    notAvailableCode,
-    logicFunctionLabel,
-  }: MessagingProviderLookup & {
-    getLogicFunctionUniversalIdentifier: (
-      messagingProvider: FlatMessagingProvider,
-    ) => string | null;
-    notAvailableCode:
-      | MessagingProviderExceptionCode.SEND_MESSAGE_NOT_AVAILABLE
-      | MessagingProviderExceptionCode.START_CONVERSATION_NOT_AVAILABLE;
-    logicFunctionLabel: string;
-  }): Promise<{
-    messagingProvider: FlatMessagingProvider;
-    logicFunction: FlatLogicFunction;
-  }> {
-    const { messagingProvider, logicFunction } = await this.findLogicFunction({
-      messagingProviderUniversalIdentifier,
-      connectionProviderId,
-      workspaceId,
-      getLogicFunctionUniversalIdentifier,
-    });
-
-    if (!isDefined(messagingProvider)) {
-      throw new MessagingProviderException(
-        `Message channel ${messageChannelId} has no messaging provider on its connection provider`,
-        notAvailableCode,
-      );
-    }
-
-    if (!isDefined(logicFunction)) {
-      throw new MessagingProviderException(
-        `Messaging provider ${messagingProvider.id} has no ${logicFunctionLabel} logic function in its application`,
-        notAvailableCode,
-      );
-    }
-
-    return { messagingProvider, logicFunction };
-  }
-
-  private async findLogicFunction({
+  private async findStartConversationLogicFunction({
     messagingProviderUniversalIdentifier,
     connectionProviderId,
     workspaceId,
-    getLogicFunctionUniversalIdentifier,
-  }: Omit<MessagingProviderLookup, 'messageChannelId'> & {
-    getLogicFunctionUniversalIdentifier: (
-      messagingProvider: FlatMessagingProvider,
-    ) => string | null;
-  }): Promise<{
-    messagingProvider: FlatMessagingProvider | undefined;
-    logicFunction: FlatLogicFunction | undefined;
-  }> {
+  }: ConversationStarterLookup) {
     const {
       flatMessagingProviderMaps,
       flatConnectionProviderMaps,
@@ -235,25 +226,14 @@ export class MessagingProviderMessageSenderService {
       'flatLogicFunctionMaps',
     ]);
 
-    const messagingProvider = findMessagingProviderOnConnectionProvider({
+    return findMessagingProviderLogicFunction({
       flatMessagingProviderMaps,
       flatConnectionProviderMaps,
+      flatLogicFunctionMaps,
       messagingProviderUniversalIdentifier,
       connectionProviderId,
+      getLogicFunctionUniversalIdentifier: (provider: FlatMessagingProvider) =>
+        provider.startConversationLogicFunctionUniversalIdentifier,
     });
-
-    if (!isDefined(messagingProvider)) {
-      return { messagingProvider: undefined, logicFunction: undefined };
-    }
-
-    return {
-      messagingProvider,
-      logicFunction: findApplicationFlatLogicFunction({
-        flatLogicFunctionMaps,
-        universalIdentifier:
-          getLogicFunctionUniversalIdentifier(messagingProvider),
-        applicationId: messagingProvider.applicationId,
-      }),
-    };
   }
 }
