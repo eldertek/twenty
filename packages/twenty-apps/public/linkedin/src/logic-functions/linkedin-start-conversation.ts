@@ -4,7 +4,7 @@ import { getConnection } from 'twenty-sdk/logic-function';
 
 import { LINKEDIN_START_CONVERSATION_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { buildLinkedinProfileHandle } from 'src/logic-functions/utils/build-linkedin-profile-handle.util';
-import { getLinkedinProfileIdentifier } from 'src/logic-functions/utils/get-linkedin-profile-slug.util';
+import { getLinkedinProfileIdentifier } from 'src/logic-functions/utils/get-linkedin-profile-identifier.util';
 import { getPersonLinkedinLink } from 'src/logic-functions/utils/get-person-linkedin-link.util';
 import { isLinkedinInternalProfileId } from 'src/logic-functions/utils/is-linkedin-internal-profile-id.util';
 import {
