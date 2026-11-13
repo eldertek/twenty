@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import chunk from 'lodash.chunk';
+import { QUERY_MAX_RECORDS } from 'twenty-shared/constants';
 import { isDefined } from 'twenty-shared/utils';
 import { In } from 'typeorm';
 
@@ -79,9 +81,12 @@ export class ApplicationMessageReadStateService {
           })),
         });
 
-        if (associationIdsToUpdate.length > 0) {
+        for (const associationIds of chunk(
+          associationIdsToUpdate,
+          QUERY_MAX_RECORDS,
+        )) {
           await messageChannelMessageAssociationRepository.update(
-            { id: In(associationIdsToUpdate) },
+            { id: In(associationIds) },
             { isRead },
           );
         }

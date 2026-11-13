@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
+import chunk from 'lodash.chunk';
 import { type MessagingProviderConversationStyle } from 'twenty-shared/application';
+import { QUERY_MAX_RECORDS } from 'twenty-shared/constants';
 import {
   MessageChannelVisibility,
   MessageParticipantRole,
@@ -339,10 +341,15 @@ export class TimelineMessagingService {
         return;
       }
 
-      await messageChannelMessageAssociationRepository.update(
-        { id: In(unreadAssociations.map(({ id }) => id)) },
-        { isRead: true },
-      );
+      for (const associationIds of chunk(
+        unreadAssociations.map(({ id }) => id),
+        QUERY_MAX_RECORDS,
+      )) {
+        await messageChannelMessageAssociationRepository.update(
+          { id: In(associationIds) },
+          { isRead: true },
+        );
+      }
     }, buildSystemAuthContext(workspaceId));
   }
 
