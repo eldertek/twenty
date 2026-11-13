@@ -302,7 +302,7 @@ import { AddRowLevelPermissionRuleTableFastInstanceCommand } from 'src/database/
 import { AddRowLevelPermissionRuleLinksFastInstanceCommand } from 'src/database/commands/upgrade-version-command/2-58/2-58-instance-command-fast-1794337540366-add-row-level-permission-rule-links';
 import { AddOauthDiscoveryToConnectionProviderFastInstanceCommand } from 'src/database/commands/upgrade-version-command/2-59/2-59-instance-command-fast-1794507959766-add-oauth-discovery-to-connection-provider';
 import { RenameDeferredWorkspaceMigrationActionToDeferredWorkspaceOperationFastInstanceCommand } from 'src/database/commands/upgrade-version-command/2-59/2-59-instance-command-fast-1794508996000-rename-deferred-workspace-migration-action-to-deferred-workspace-operation';
-import { AddStartConversationLogicFunctionToMessagingProviderFastInstanceCommand } from 'src/database/commands/upgrade-version-command/2-59/2-59-instance-command-fast-1794514820193-add-start-conversation-logic-function-to-messaging-provider';
+import { AddStartConversationLogicFunctionToMessagingProviderFastInstanceCommand } from 'src/database/commands/upgrade-version-command/2-59/2-59-instance-command-fast-1794570409813-add-start-conversation-logic-function-to-messaging-provider';
 
 export const INSTANCE_COMMANDS = [
   AddViewFieldGroupIdIndexOnViewFieldFastInstanceCommand,
