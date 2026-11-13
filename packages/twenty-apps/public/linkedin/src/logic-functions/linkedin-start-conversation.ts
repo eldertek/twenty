@@ -14,6 +14,27 @@ import {
 import { getUnipileUser } from 'src/unipile/utils/get-unipile-user.util';
 import { startUnipileChatOrThrow } from 'src/unipile/utils/start-unipile-chat-or-throw.util';
 
+const resolveProfileIdentifier = async ({
+  handle,
+  personId,
+}: {
+  handle: string | null;
+  personId: string;
+}): Promise<string | null> => {
+  const knownProfileIdentifier = getLinkedinProfileIdentifier(handle ?? '');
+
+  if (
+    isNonEmptyString(knownProfileIdentifier) &&
+    !isLinkedinInternalProfileId(knownProfileIdentifier)
+  ) {
+    return knownProfileIdentifier;
+  }
+
+  return getLinkedinProfileIdentifier(
+    (await getPersonLinkedinLink(personId)) ?? '',
+  );
+};
+
 export const linkedinStartConversationHandler = async ({
   connectedAccountId,
   recipients,
@@ -36,17 +57,7 @@ export const linkedinStartConversationHandler = async ({
     );
   }
 
-  const knownProfileIdentifier = getLinkedinProfileIdentifier(
-    recipient.handle ?? '',
-  );
-
-  const profileIdentifier =
-    isNonEmptyString(knownProfileIdentifier) &&
-    !isLinkedinInternalProfileId(knownProfileIdentifier)
-      ? knownProfileIdentifier
-      : getLinkedinProfileIdentifier(
-          (await getPersonLinkedinLink(recipient.personId)) ?? '',
-        );
+  const profileIdentifier = await resolveProfileIdentifier(recipient);
 
   if (profileIdentifier === null) {
     throw new Error(
